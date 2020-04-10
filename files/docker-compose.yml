@@ -5,6 +5,8 @@ services:
     container_name: deepfence-postgres
     image: deepfenceio/deepfence_postgres_ce:latest
     restart: on-failure
+    networks:
+      - deepfence_net
     volumes:
       - deepfence_data_community:/data:rw
 
@@ -12,6 +14,8 @@ services:
     container_name: deepfence-redis
     image: deepfenceio/deepfence_redis_ce:latest
     restart: on-failure
+    networks:
+      - deepfence_net
     volumes:
       - deepfence_data_community:/data:rw
 
@@ -20,6 +24,8 @@ services:
     image: deepfenceio/deepfence_fetcher_ce:latest
     depends_on:
       - deepfence_postgres
+    networks:
+      - deepfence_net
     ports:
       - "8001:8001"
       - "8002:8002"
@@ -32,6 +38,8 @@ services:
     image: deepfenceio/deepfence_discovery_ce:latest
     pid: "host"
     privileged: true
+    networks:
+      - deepfence_net
     restart: on-failure
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -42,6 +50,8 @@ services:
     container_name: deepfence-ti
     image: deepfenceio/deepfence_ti_ce:latest
     restart: on-failure
+    networks:
+      - deepfence_net
     ports:
       - "8003:8003"
     depends_on:
@@ -55,6 +65,8 @@ services:
     container_name: deepfence-es-master
     image: deepfenceio/deepfence_elastic_ce:latest
     restart: on-failure
+    networks:
+      - deepfence_net
     volumes:
       - deepfence_data_community:/data:rw
     ulimits:
@@ -70,6 +82,8 @@ services:
   nginx:
     container_name: deepfence-nginx
     image: deepfenceio/deepfence_nginx_ce:latest
+    networks:
+      - deepfence_net
     ports:
       - "80:80"
       - "443:443"
@@ -82,6 +96,8 @@ services:
     image: deepfenceio/deepfence_api_ce:latest
     tmpfs:
       - /tmp
+    networks:
+      - deepfence_net
     depends_on:
       - redis
       - deepfence_postgres
@@ -100,6 +116,8 @@ services:
     image: deepfenceio/deepfence_api_ce:latest
     entrypoint: /app/code/dockerify/celery/entrypoint
     restart: on-failure
+    networks:
+      - deepfence_net
     ports:
       - "8006:8006"
     depends_on:
@@ -118,6 +136,8 @@ services:
     image: deepfenceio/deepfence_api_ce:latest
     entrypoint: /app/code/dockerify/celerybeat/entrypoint
     restart: on-failure
+    networks:
+      - deepfence_net
     environment:
       - POSTGRES_HOST=deepfence_postgres
       - ELASTICSEARCH_HOST=es_master
@@ -129,12 +149,16 @@ services:
   ui:
     container_name: deepfence-ui
     image: deepfenceio/deepfence_ui_ce:latest
+    networks:
+      - deepfence_net
     depends_on:
       - deepfence_topology
 
   diagnosis:
     container_name: deepfence-diagnosis
     image: deepfenceio/deepfence_diagnosis_ce:latest
+    networks:
+      - deepfence_net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: always
@@ -163,3 +187,7 @@ services:
 volumes:
   deepfence_data_community:
     driver: local
+
+networks:
+  deepfence_net:
+    driver: bridge

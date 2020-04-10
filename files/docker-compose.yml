@@ -5,59 +5,58 @@ services:
     container_name: deepfence-postgres
     image: deepfenceio/deepfence_postgres_ce:latest
     restart: on-failure
-    network_mode: "host"
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
 
   redis:
     container_name: deepfence-redis
     image: deepfenceio/deepfence_redis_ce:latest
     restart: on-failure
-    network_mode: "host"
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
 
   deepfence_fetcher:
     container_name: deepfence-fetcher
     image: deepfenceio/deepfence_fetcher_ce:latest
     depends_on:
       - deepfence_postgres
-    network_mode: "host"
+    ports:
+      - "8001:8001"
+      - "8002:8002"
     restart: on-failure
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
 
   deepfence_topology:
     container_name: deepfence-topology
     image: deepfenceio/deepfence_discovery_ce:latest
-    network_mode: "host"
     pid: "host"
     privileged: true
     restart: on-failure
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /sys/kernel/debug:/sys/kernel/debug:rw
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
 
   deepfence_ti:
     container_name: deepfence-ti
     image: deepfenceio/deepfence_ti_ce:latest
     restart: on-failure
+    ports:
+      - "8003:8003"
     depends_on:
       - deepfence_topology
       - es_master
       - redis
-    network_mode: "host"
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
 
   es_master:
     container_name: deepfence-es-master
     image: deepfenceio/deepfence_elastic_ce:latest
     restart: on-failure
-    network_mode: "host"
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
     ulimits:
       memlock:
         soft: -1
@@ -71,44 +70,58 @@ services:
   nginx:
     container_name: deepfence-nginx
     image: deepfenceio/deepfence_nginx_ce:latest
-    network_mode: "host"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8008:8008"
     depends_on:
       - api
 
   api:
     container_name: deepfence-api
     image: deepfenceio/deepfence_api_ce:latest
-    network_mode: "host"
     tmpfs:
       - /tmp
     depends_on:
       - redis
       - deepfence_postgres
       - es_master
+    environment:
+      - POSTGRES_HOST=deepfence_postgres
+      - ELASTICSEARCH_HOST=es_master
+      - REDIS_HOST=redis
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
       - /var/run/docker.sock:/var/run/docker.sock
     entrypoint: /app/code/dockerify/api/entrypoint
 
   celery:
     container_name: deepfence-celery
     image: deepfenceio/deepfence_api_ce:latest
-    network_mode: "host"
     entrypoint: /app/code/dockerify/celery/entrypoint
     restart: on-failure
+    ports:
+      - "8006:8006"
     depends_on:
       - redis
       - deepfence_postgres
+    environment:
+      - POSTGRES_HOST=deepfence_postgres
+      - ELASTICSEARCH_HOST=es_master
+      - REDIS_HOST=redis
     volumes:
-      - deepfence_data:/data:rw
+      - deepfence_data_community:/data:rw
       - /var/run/docker.sock:/var/run/docker.sock
 
   celerybeat:
     container_name: deepfence-celerybeat
     image: deepfenceio/deepfence_api_ce:latest
-    network_mode: "host"
     entrypoint: /app/code/dockerify/celerybeat/entrypoint
     restart: on-failure
+    environment:
+      - POSTGRES_HOST=deepfence_postgres
+      - ELASTICSEARCH_HOST=es_master
+      - REDIS_HOST=redis
     depends_on:
       - redis
       - deepfence_postgres
@@ -116,7 +129,6 @@ services:
   ui:
     container_name: deepfence-ui
     image: deepfenceio/deepfence_ui_ce:latest
-    network_mode: "host"
     depends_on:
       - deepfence_topology
 
@@ -125,7 +137,6 @@ services:
     image: deepfenceio/deepfence_diagnosis_ce:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    network_mode: "host"
     restart: always
 
   vulnerability_mapper:
@@ -150,5 +161,5 @@ services:
       - DF_BACKEND_IP=localhost
 
 volumes:
-  deepfence_data:
+  deepfence_data_community:
     driver: local
